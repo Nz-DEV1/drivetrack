@@ -1,0 +1,397 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>DRIVE.TRACK — Manager</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Poppins:wght@700;800;900&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #f6f4ef; --text: #171717; --muted: #6b665f;
+      --primary: #ef4b2f; --yellow: #ffc83d; --green: #b7df6f;
+      --teal: #49c5b6; --card: #ffffff; --line: #e7e0d8;
+    }
+    html, body { height: 100%; background: var(--bg); font-family: 'Inter', sans-serif; color: var(--text); overflow: hidden; }
+
+    .layout { display: grid; grid-template-columns: 340px 1fr; height: 100vh; gap: 0; }
+
+    /* SIDEBAR */
+    .sidebar {
+      background: var(--card); border-right: 1px solid var(--line);
+      display: flex; flex-direction: column; overflow: hidden;
+    }
+
+    .sidebar-header { padding: 28px 24px 20px; border-bottom: 1px solid var(--line); flex-shrink: 0; }
+    .logo { font-family: 'Inter', sans-serif; font-weight: 800; font-size: 16px; letter-spacing: -0.03em; }
+    .logo span { color: var(--muted); font-weight: 600; }
+    .sidebar-title { font-family: 'Poppins', sans-serif; font-size: 26px; font-weight: 900; letter-spacing: -0.05em; margin-top: 6px; }
+    .live-badge { display: inline-flex; align-items: center; gap: 6px; background: var(--teal); color: white; padding: 5px 12px; border-radius: 999px; font-size: 11px; font-weight: 800; letter-spacing: 0.05em; text-transform: uppercase; margin-top: 10px; }
+    .live-dot { width: 7px; height: 7px; border-radius: 50%; background: white; animation: pulse 1.4s infinite; }
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.3} }
+
+    /* SUMMARY ROW */
+    .summary-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; padding: 20px 24px; border-bottom: 1px solid var(--line); flex-shrink: 0; }
+    .sum-card { background: var(--bg); border-radius: 18px; padding: 14px 16px; }
+    .sum-label { font-size: 10px; font-weight: 800; letter-spacing: 0.07em; text-transform: uppercase; color: var(--muted); margin-bottom: 4px; }
+    .sum-val { font-family: 'Poppins', sans-serif; font-size: 28px; font-weight: 900; letter-spacing: -0.05em; }
+
+    /* DRIVER LIST */
+    .driver-list { flex: 1; overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 10px; }
+    .driver-list::-webkit-scrollbar { width: 4px; }
+    .driver-list::-webkit-scrollbar-track { background: transparent; }
+    .driver-list::-webkit-scrollbar-thumb { background: var(--line); border-radius: 999px; }
+
+    .driver-card {
+      background: var(--bg); border: 1px solid var(--line); border-radius: 20px;
+      padding: 16px 18px; cursor: pointer; transition: all 0.15s;
+    }
+    .driver-card:hover { border-color: var(--teal); background: var(--card); }
+    .driver-card.active { border-color: var(--teal); background: var(--card); box-shadow: 0 0 0 3px rgba(73,197,182,0.15); }
+
+    .dc-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+    .dc-name-row { display: flex; align-items: center; gap: 10px; }
+    .dc-avatar { width: 36px; height: 36px; border-radius: 50%; background: var(--primary); color: white; font-family: 'Poppins', sans-serif; font-weight: 900; font-size: 14px; display: grid; place-items: center; flex-shrink: 0; }
+    .dc-avatar.teal { background: var(--teal); }
+    .dc-avatar.yellow { background: #d4980a; }
+    .dc-name { font-family: 'Poppins', sans-serif; font-size: 15px; font-weight: 800; letter-spacing: -0.03em; }
+    .dc-since { font-size: 11px; color: var(--muted); font-weight: 500; }
+    .dc-status { padding: 5px 10px; border-radius: 999px; font-size: 10px; font-weight: 800; letter-spacing: 0.05em; text-transform: uppercase; }
+    .s-active { background: var(--teal); color: white; }
+    .s-done   { background: var(--green); color: var(--text); }
+
+    .dc-stats { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; }
+    .dc-stat .ds-lbl { font-size: 10px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: 0.04em; }
+    .dc-stat .ds-val { font-family: 'Poppins', sans-serif; font-size: 16px; font-weight: 800; letter-spacing: -0.03em; }
+
+    .no-drivers { text-align: center; padding: 40px 20px; color: var(--muted); }
+    .no-drivers .nd-icon { font-size: 40px; margin-bottom: 12px; }
+    .no-drivers p { font-size: 14px; font-weight: 500; }
+
+    /* MAP */
+    #map { width: 100%; height: 100%; }
+
+    /* HISTORY PANEL */
+    .history-btn {
+      position: absolute; bottom: 24px; right: 24px; z-index: 1000;
+      background: var(--text); color: white; border: none; border-radius: 999px;
+      padding: 14px 22px; font-family: 'Poppins', sans-serif; font-size: 14px;
+      font-weight: 800; cursor: pointer; box-shadow: 0 4px 20px rgba(0,0,0,0.2);
+      transition: transform 0.1s;
+    }
+    .history-btn:active { transform: scale(0.97); }
+
+    /* HISTORY MODAL */
+    .modal-overlay {
+      position: fixed; inset: 0; background: rgba(0,0,0,0.4); z-index: 2000;
+      display: none; align-items: center; justify-content: center; padding: 24px;
+    }
+    .modal-overlay.show { display: flex; }
+    .modal {
+      background: var(--card); border-radius: 28px; width: 100%; max-width: 600px;
+      max-height: 80vh; display: flex; flex-direction: column; overflow: hidden;
+    }
+    .modal-header { padding: 24px 28px 20px; border-bottom: 1px solid var(--line); display: flex; align-items: center; justify-content: space-between; }
+    .modal-title { font-family: 'Poppins', sans-serif; font-size: 22px; font-weight: 900; letter-spacing: -0.04em; }
+    .modal-close { background: var(--bg); border: none; border-radius: 999px; padding: 8px 14px; cursor: pointer; font-size: 13px; font-weight: 700; color: var(--muted); }
+    .modal-body { flex: 1; overflow-y: auto; padding: 20px 28px; display: flex; flex-direction: column; gap: 12px; }
+
+    .history-row {
+      background: var(--bg); border-radius: 18px; padding: 16px 18px;
+      display: grid; grid-template-columns: 1fr auto; gap: 12px; align-items: center;
+    }
+    .hr-name { font-family: 'Poppins', sans-serif; font-size: 16px; font-weight: 800; }
+    .hr-date { font-size: 12px; color: var(--muted); margin-top: 2px; }
+    .hr-stats { display: flex; gap: 16px; }
+    .hr-stat .hrl { font-size: 10px; font-weight: 700; color: var(--muted); text-transform: uppercase; }
+    .hr-stat .hrv { font-family: 'Poppins', sans-serif; font-size: 15px; font-weight: 800; }
+
+    @media (max-width: 900px) {
+      .layout { grid-template-columns: 1fr; grid-template-rows: auto 1fr; height: 100svh; }
+      .sidebar { border-right: none; border-bottom: 1px solid var(--line); height: auto; max-height: 50vh; overflow-y: auto; }
+    }
+  </style>
+</head>
+<body>
+
+<div class="layout">
+
+  <!-- SIDEBAR -->
+  <div class="sidebar">
+    <div class="sidebar-header">
+      <div class="logo">DRIVE.TRACK <span>/ Manager</span></div>
+      <div class="sidebar-title">Live Fleet</div>
+      <div class="live-badge"><span class="live-dot"></span> Live tracking</div>
+    </div>
+
+    <div class="summary-row">
+      <div class="sum-card">
+        <div class="sum-label">Active Now</div>
+        <div class="sum-val" id="activeCount">0</div>
+      </div>
+      <div class="sum-card">
+        <div class="sum-label">Total KM Today</div>
+        <div class="sum-val" id="totalKmAll">0</div>
+      </div>
+    </div>
+
+    <div class="driver-list" id="driverList">
+      <div class="no-drivers">
+        <div class="nd-icon">🚚</div>
+        <p>No active drivers yet.<br/>Waiting for trips to start…</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- MAP -->
+  <div style="position:relative">
+    <div id="map"></div>
+    <button class="history-btn" onclick="openHistory()">📋 Trip History</button>
+  </div>
+
+</div>
+
+<!-- HISTORY MODAL -->
+<div class="modal-overlay" id="historyModal">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title">Trip History</div>
+      <button class="modal-close" onclick="closeHistory()">✕ Close</button>
+    </div>
+    <div class="modal-body" id="historyBody">Loading…</div>
+  </div>
+</div>
+
+<script>
+  // ─── CONFIG ────────────────────────────────────────────────────────────────
+const SUPABASE_URL = 'https://gczldnidvytkppbbwvyz.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imdjemxkbmlkdnl0a3BwYmJ3dnl6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExMjI4ODUsImV4cCI6MjA5NjY5ODg4NX0.xe5feNnhX-CEIasF1ms2J_wH88_Le2pO49sz1q1joOY';
+  // ──────────────────────────────────────────────────────────────────────────
+
+  const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+  // Map setup
+  const map = L.map('map', { zoomControl: true, attributionControl: false }).setView([18.0735, -15.9582], 12);
+  L.tileLayer('https://{s}.basemaps.cartocdn.com/light_nolabels/{z}/{x}/{y}{r}.png', { maxZoom: 19 }).addTo(map);
+
+  const COLORS = ['#3b82f6','#ef4b2f','#8b5cf6','#f59e0b','#10b981','#ec4899','#14b8a6','#f97316','#6366f1','#84cc16'];
+
+  // State: tripId → { line, currentMarker, points, color, data }
+  const activeTrips = {};
+  let selectedTripId = null;
+
+  function avatarColors(i) {
+    return ['', 'teal', 'yellow'][i % 3];
+  }
+
+  function timeAgo(isoStr) {
+    const diff = Date.now() - new Date(isoStr).getTime();
+    const m = Math.floor(diff / 60000);
+    if (m < 1) return 'just now';
+    if (m < 60) return `${m}m ago`;
+    return `${Math.floor(m/60)}h ${m%60}m ago`;
+  }
+
+  function fmtTime(isoStr) {
+    return new Date(isoStr).toLocaleTimeString([], { hour:'2-digit', minute:'2-digit' });
+  }
+
+  // ── Load active trips on start ────────────────────────────────────────────
+  async function loadActiveTrips() {
+    const today = new Date(); today.setHours(0,0,0,0);
+    const { data: trips } = await sb.from('trips')
+      .select('*')
+      .eq('status', 'active')
+      .gte('started_at', today.toISOString())
+      .order('started_at', { ascending: false });
+
+    if (!trips) return;
+    for (const trip of trips) await loadTripPoints(trip);
+    renderSidebar();
+  }
+
+  async function loadTripPoints(trip) {
+    const { data: points } = await sb.from('gps_points')
+      .select('lat, lng, speed_kmh, recorded_at')
+      .eq('trip_id', trip.id)
+      .order('recorded_at', { ascending: true });
+
+    const idx = Object.keys(activeTrips).length;
+    const color = COLORS[idx % COLORS.length];
+    const coords = (points || []).map(p => [p.lat, p.lng]);
+
+    const line = L.polyline(coords, { color, weight: 5, opacity: 0.85 }).addTo(map);
+
+    let startM = null, currentM = null;
+    if (coords.length > 0) {
+      startM = L.circleMarker(coords[0], {
+        radius: 9, fillColor: '#b7df6f', color: '#fff', weight: 3, fillOpacity: 1
+      }).addTo(map).bindPopup(`${trip.driver_name} — Start`);
+
+      currentM = L.circleMarker(coords[coords.length-1], {
+        radius: 9, fillColor: color, color: '#fff', weight: 3, fillOpacity: 1
+      }).addTo(map).bindPopup(trip.driver_name);
+    }
+
+    activeTrips[trip.id] = { trip, line, startMarker: startM, currentMarker: currentM, points: coords, color };
+  }
+
+  // ── Real-time: new GPS points ─────────────────────────────────────────────
+  sb.channel('gps_points_live')
+    .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'gps_points' }, payload => {
+      const { trip_id, lat, lng } = payload.new;
+      if (!activeTrips[trip_id]) return;
+
+      const entry = activeTrips[trip_id];
+      const point = [lat, lng];
+      entry.points.push(point);
+      entry.line.setLatLngs(entry.points);
+
+      if (!entry.startMarker) {
+        entry.startMarker = L.circleMarker(point, {
+          radius: 9, fillColor: '#b7df6f', color: '#fff', weight: 3, fillOpacity: 1
+        }).addTo(map).bindPopup(`${entry.trip.driver_name} — Start`);
+      }
+
+      if (entry.currentMarker) {
+        entry.currentMarker.setLatLng(point);
+      } else {
+        entry.currentMarker = L.circleMarker(point, {
+          radius: 9, fillColor: entry.color, color: '#fff', weight: 3, fillOpacity: 1
+        }).addTo(map).bindPopup(entry.trip.driver_name);
+      }
+
+      renderSidebar();
+    })
+    .subscribe();
+
+  // ── Real-time: new trips starting ─────────────────────────────────────────
+  sb.channel('trips_live')
+    .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'trips' }, async payload => {
+      const trip = payload.new;
+      await loadTripPoints(trip);
+      renderSidebar();
+    })
+    .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'trips' }, payload => {
+      const trip = payload.new;
+      if (activeTrips[trip.id]) {
+        activeTrips[trip.id].trip = trip;
+        if (trip.status === 'done' && activeTrips[trip.id].currentMarker) {
+          // Add end marker
+          const pts = activeTrips[trip.id].points;
+          if (pts.length > 0) {
+            L.circleMarker(pts[pts.length-1], {
+              radius: 10, fillColor: '#ef4b2f', color: '#fff', weight: 3, fillOpacity: 1
+            }).addTo(map).bindPopup(`${trip.driver_name} — End`);
+          }
+        }
+      }
+      renderSidebar();
+    })
+    .subscribe();
+
+  // ── Sidebar render ─────────────────────────────────────────────────────────
+  function renderSidebar() {
+    const list = document.getElementById('driverList');
+    const trips = Object.values(activeTrips);
+
+    const active = trips.filter(t => t.trip.status === 'active').length;
+    const totalKm = trips.reduce((s, t) => s + (t.trip.total_km || 0), 0);
+    document.getElementById('activeCount').textContent = active;
+    document.getElementById('totalKmAll').textContent = totalKm.toFixed(1);
+
+    if (trips.length === 0) {
+      list.innerHTML = `<div class="no-drivers"><div class="nd-icon">🚚</div><p>No active drivers yet.<br/>Waiting for trips to start…</p></div>`;
+      return;
+    }
+
+    list.innerHTML = '';
+    trips.forEach((entry, i) => {
+      const { trip, color, points } = entry;
+      const isActive = trip.status === 'active';
+      const card = document.createElement('div');
+      card.className = `driver-card${selectedTripId === trip.id ? ' active' : ''}`;
+      card.style.borderLeftColor = color;
+      card.innerHTML = `
+        <div class="dc-top">
+          <div class="dc-name-row">
+            <div class="dc-avatar ${avatarColors(i)}">${trip.driver_name.charAt(0).toUpperCase()}</div>
+            <div>
+              <div class="dc-name">${trip.driver_name}</div>
+              <div class="dc-since">${isActive ? 'Started ' + timeAgo(trip.started_at) : 'Completed ' + fmtTime(trip.ended_at)}</div>
+            </div>
+          </div>
+          <span class="dc-status ${isActive ? 's-active' : 's-done'}">${isActive ? '● Live' : 'Done'}</span>
+        </div>
+        <div class="dc-stats">
+          <div class="dc-stat"><div class="ds-lbl">KM</div><div class="ds-val" style="color:${color}">${(trip.total_km||0).toFixed(1)}</div></div>
+          <div class="dc-stat"><div class="ds-lbl">Max</div><div class="ds-val">${trip.max_speed_kmh||'—'}</div></div>
+          <div class="dc-stat"><div class="ds-lbl">Pts</div><div class="ds-val">${points.length}</div></div>
+        </div>
+      `;
+      card.onclick = () => focusDriver(trip.id);
+      list.appendChild(card);
+    });
+  }
+
+  function focusDriver(tripId) {
+    selectedTripId = tripId;
+    const entry = activeTrips[tripId];
+    if (!entry) return;
+    if (entry.points.length > 1) {
+      map.fitBounds(entry.line.getBounds(), { padding: [60,60] });
+    } else if (entry.points.length === 1) {
+      map.setView(entry.points[0], 15);
+    }
+    renderSidebar();
+  }
+
+  // ── History modal ─────────────────────────────────────────────────────────
+  async function openHistory() {
+    document.getElementById('historyModal').classList.add('show');
+    const body = document.getElementById('historyBody');
+    body.innerHTML = 'Loading…';
+
+    const { data: trips } = await sb.from('trips')
+      .select('*')
+      .eq('status', 'done')
+      .order('started_at', { ascending: false })
+      .limit(50);
+
+    if (!trips || trips.length === 0) {
+      body.innerHTML = '<p style="color:var(--muted);text-align:center;padding:20px">No completed trips yet.</p>';
+      return;
+    }
+
+    body.innerHTML = '';
+    trips.forEach(t => {
+      const el = document.createElement('div');
+      el.className = 'history-row';
+      const date = new Date(t.started_at).toLocaleDateString([], { weekday:'short', month:'short', day:'numeric' });
+      el.innerHTML = `
+        <div>
+          <div class="hr-name">${t.driver_name}</div>
+          <div class="hr-date">${date} · ${fmtTime(t.started_at)} → ${t.ended_at ? fmtTime(t.ended_at) : '?'}</div>
+        </div>
+        <div class="hr-stats">
+          <div class="hr-stat"><div class="hrl">KM</div><div class="hrv">${(t.total_km||0).toFixed(1)}</div></div>
+          <div class="hr-stat"><div class="hrl">Avg</div><div class="hrv">${t.avg_speed_kmh||'—'}</div></div>
+          <div class="hr-stat"><div class="hrl">Max</div><div class="hrv">${t.max_speed_kmh||'—'}</div></div>
+        </div>
+      `;
+      body.appendChild(el);
+    });
+  }
+
+  function closeHistory() {
+    document.getElementById('historyModal').classList.remove('show');
+  }
+
+  // Init
+  loadActiveTrips();
+</script>
+</body>
+</html>

@@ -1,0 +1,422 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <title>DRIVE.TRACK</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Poppins:wght@700;800;900&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #f6f4ef; --text: #171717; --muted: #6b665f;
+      --primary: #ef4b2f; --yellow: #ffc83d; --green: #b7df6f;
+      --teal: #49c5b6; --card: #ffffff; --line: #e7e0d8;
+    }
+    html, body { height: 100%; background: var(--bg); font-family: 'Inter', sans-serif; color: var(--text); }
+
+    body { display: flex; flex-direction: column; min-height: 100svh; }
+
+    /* HEADER */
+    .header {
+      padding: 20px 20px 0;
+      display: flex; align-items: center; justify-content: space-between;
+      flex-shrink: 0;
+    }
+    .logo { font-family: 'Inter', sans-serif; font-weight: 800; font-size: 16px; letter-spacing: -0.03em; }
+    .status-badge {
+      padding: 7px 14px; border-radius: 999px; font-size: 11px;
+      font-weight: 800; letter-spacing: 0.05em; text-transform: uppercase; transition: all 0.3s;
+    }
+    .badge-idle    { background: var(--line); color: var(--muted); }
+    .badge-running { background: var(--teal); color: white; }
+    .badge-done    { background: var(--green); color: var(--text); }
+
+    /* DRIVER NAME PROMPT */
+    #nameScreen {
+      flex: 1; display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      padding: 28px 24px; gap: 20px;
+    }
+    .name-card {
+      width: 100%; max-width: 400px; background: var(--text);
+      border-radius: 34px; padding: 40px 32px; color: white; text-align: center;
+    }
+    .name-card h2 {
+      font-family: 'Poppins', sans-serif; font-size: 32px;
+      font-weight: 900; letter-spacing: -0.05em; margin-bottom: 8px;
+    }
+    .name-card p { font-size: 14px; opacity: 0.6; margin-bottom: 28px; }
+    .name-input {
+      width: 100%; padding: 18px 20px; border-radius: 999px;
+      border: 2px solid rgba(255,255,255,0.2); background: rgba(255,255,255,0.1);
+      color: white; font-family: 'Poppins', sans-serif; font-size: 18px; font-weight: 700;
+      text-align: center; outline: none; margin-bottom: 16px;
+    }
+    .name-input::placeholder { opacity: 0.4; }
+    .name-input:focus { border-color: var(--yellow); }
+
+    /* MAIN TRACKER */
+    #trackerScreen { flex: 1; display: none; flex-direction: column; padding: 16px 16px 24px; gap: 14px; }
+
+    .top-stats {
+      display: grid; grid-template-columns: 1fr 1fr; gap: 12px;
+    }
+    .stat-card {
+      background: var(--card); border: 1px solid var(--line);
+      border-radius: 24px; padding: 18px 16px;
+    }
+    .stat-label { font-size: 10px; font-weight: 800; letter-spacing: 0.07em; text-transform: uppercase; color: var(--muted); margin-bottom: 4px; }
+    .stat-val { font-family: 'Poppins', sans-serif; font-size: 36px; font-weight: 900; letter-spacing: -0.06em; line-height: 1; }
+    .stat-unit { font-size: 12px; color: var(--muted); font-weight: 600; margin-top: 2px; }
+
+    .km-card {
+      background: var(--primary); border-radius: 28px; padding: 24px 24px 20px;
+      color: white; display: flex; align-items: center; justify-content: space-between;
+      flex-shrink: 0;
+    }
+    .km-card.done { background: var(--text); }
+    .km-left .eyebrow { font-size: 11px; font-weight: 800; letter-spacing: 0.07em; text-transform: uppercase; opacity: 0.65; margin-bottom: 4px; }
+    .km-number { font-family: 'Poppins', sans-serif; font-size: 72px; font-weight: 900; letter-spacing: -0.07em; line-height: 1; }
+    .km-unit-label { font-size: 20px; font-weight: 700; opacity: 0.55; }
+    .km-right { text-align: right; }
+    .timer-label { font-size: 11px; opacity: 0.6; font-weight: 600; margin-bottom: 4px; }
+    .timer-val { font-family: 'Poppins', sans-serif; font-size: 22px; font-weight: 900; letter-spacing: -0.04em; }
+
+    /* MAP */
+    #map {
+      flex: 1; min-height: 240px; border-radius: 24px;
+      border: 1px solid var(--line); overflow: hidden;
+      z-index: 1;
+    }
+
+    /* GPS bar */
+    .gps-bar {
+      background: var(--card); border: 1px solid var(--line);
+      border-radius: 16px; padding: 12px 16px;
+      display: flex; align-items: center; gap: 10px; flex-shrink: 0;
+    }
+    .gps-dot { width: 9px; height: 9px; border-radius: 50%; background: var(--line); flex-shrink: 0; transition: background 0.3s; }
+    .gps-dot.active { background: var(--teal); animation: pulse 1.5s infinite; }
+    .gps-dot.error  { background: var(--primary); }
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.3} }
+    .gps-text { font-size: 12px; color: var(--muted); font-weight: 500; }
+
+    /* BUTTONS */
+    .btn {
+      width: 100%; padding: 20px; border-radius: 999px; border: none;
+      font-family: 'Poppins', sans-serif; font-size: 19px; font-weight: 900;
+      letter-spacing: -0.02em; cursor: pointer; transition: transform 0.1s;
+      -webkit-tap-highlight-color: transparent; flex-shrink: 0;
+    }
+    .btn:active { transform: scale(0.97); }
+    .btn-start { background: var(--yellow); color: var(--text); }
+    .btn-stop  { background: var(--primary); color: white; }
+    .btn-reset { background: var(--line); color: var(--muted); }
+    .hidden { display: none !important; }
+
+    /* RESULT PANEL */
+    .result-panel {
+      background: var(--green); border-radius: 24px; padding: 22px 22px;
+      display: none; flex-shrink: 0;
+    }
+    .result-panel.show { display: block; }
+    .result-title { font-family: 'Poppins', sans-serif; font-size: 14px; font-weight: 800; margin-bottom: 12px; }
+    .result-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .r-item .r-lbl { font-size: 10px; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase; color: #3a4a2a; }
+    .r-item .r-val { font-family: 'Poppins', sans-serif; font-size: 18px; font-weight: 900; letter-spacing: -0.03em; }
+  </style>
+</head>
+<body>
+
+<div class="header">
+  <span class="logo">DRIVE.TRACK</span>
+  <span class="status-badge badge-idle" id="statusBadge">Idle</span>
+</div>
+
+<!-- STEP 1: Enter name -->
+<div id="nameScreen">
+  <div class="name-card">
+    <h2>Who are you?</h2>
+    <p>Enter your name before starting your trip</p>
+    <input class="name-input" id="driverNameInput" type="text" placeholder="Your name…" autocomplete="off" />
+    <button class="btn btn-start" onclick="confirmName()" style="width:100%">Continue →</button>
+  </div>
+</div>
+
+<!-- STEP 2: Tracker -->
+<div id="trackerScreen">
+
+  <!-- KM display -->
+  <div class="km-card" id="kmCard">
+    <div class="km-left">
+      <div class="eyebrow" id="kmEyebrow">Distance</div>
+      <div><span class="km-number" id="kmDisplay">0.0</span><span class="km-unit-label"> km</span></div>
+    </div>
+    <div class="km-right">
+      <div class="timer-label">Time</div>
+      <div class="timer-val" id="timerDisplay">00:00:00</div>
+    </div>
+  </div>
+
+  <!-- Speed stats -->
+  <div class="top-stats">
+    <div class="stat-card">
+      <div class="stat-label">Speed Now</div>
+      <div class="stat-val" id="speedNow">—</div>
+      <div class="stat-unit">km/h</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Max Speed</div>
+      <div class="stat-val" id="speedMax">—</div>
+      <div class="stat-unit">km/h</div>
+    </div>
+  </div>
+
+  <!-- Live map -->
+  <div id="map"></div>
+
+  <!-- GPS status -->
+  <div class="gps-bar">
+    <div class="gps-dot" id="gpsDot"></div>
+    <span class="gps-text" id="gpsText">Waiting for GPS…</span>
+  </div>
+
+  <!-- Result summary -->
+  <div class="result-panel" id="resultPanel">
+    <div class="result-title">✓ Trip Complete</div>
+    <div class="result-grid">
+      <div class="r-item"><div class="r-lbl">Distance</div><div class="r-val" id="rKm">—</div></div>
+      <div class="r-item"><div class="r-lbl">Duration</div><div class="r-val" id="rTime">—</div></div>
+      <div class="r-item"><div class="r-lbl">Avg Speed</div><div class="r-val" id="rAvg">—</div></div>
+      <div class="r-item"><div class="r-lbl">Max Speed</div><div class="r-val" id="rMax">—</div></div>
+    </div>
+  </div>
+
+  <!-- Action buttons -->
+  <button class="btn btn-start" id="startBtn" onclick="startTrip()">▶ Start Trip</button>
+  <button class="btn btn-stop hidden" id="stopBtn" onclick="stopTrip()">■ Stop &amp; Save</button>
+  <button class="btn btn-reset hidden" id="resetBtn" onclick="resetTrip()">↺ New Trip</button>
+
+</div>
+
+<script>
+  // ─── CONFIG — paste your Supabase keys here ───────────────────────────────
+  const SUPABASE_URL = 'https://gczldnidvytkppbbwvyz.supabase.co';
+  const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imdjemxkbmlkdnl0a3BwYmJ3dnl6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExMjI4ODUsImV4cCI6MjA5NjY5ODg4NX0.xe5feNnhX-CEIasF1ms2J_wH88_Le2pO49sz1q1joOY';
+  // ─────────────────────────────────────────────────────────────────────────
+
+  const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+  let driverName = '';
+  let tripId     = null;
+  let watchId    = null;
+  let timerInt   = null;
+  let startTime  = null;
+  let totalKm    = 0;
+  let lastPos    = null;
+  let maxSpeed   = 0;
+  let routePoints = [];
+
+  // Map
+  let map, routeLine, startMarker, currentMarker;
+
+  function initMap(lat, lng) {
+    if (map) return;
+    map = L.map('map', { zoomControl: true, attributionControl: false }).setView([lat, lng], 14);
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/light_nolabels/{z}/{x}/{y}{r}.png', {
+      maxZoom: 19
+    }).addTo(map);
+
+    // Start marker — green circle
+    startMarker = L.circleMarker([lat, lng], {
+      radius: 10, fillColor: '#b7df6f', color: '#ffffff',
+      weight: 3, opacity: 1, fillOpacity: 1
+    }).addTo(map).bindPopup('Start');
+
+    routeLine = L.polyline([], { color: '#3b82f6', weight: 5, opacity: 0.85 }).addTo(map);
+
+    currentMarker = L.circleMarker([lat, lng], {
+      radius: 8, fillColor: '#ef4b2f', color: '#ffffff',
+      weight: 3, opacity: 1, fillOpacity: 1
+    }).addTo(map);
+  }
+
+  function haversine(a, b) {
+    const R = 6371, dLat = (b[0]-a[0])*Math.PI/180, dLon = (b[1]-a[1])*Math.PI/180;
+    const x = Math.sin(dLat/2)**2 + Math.cos(a[0]*Math.PI/180)*Math.cos(b[0]*Math.PI/180)*Math.sin(dLon/2)**2;
+    return R * 2 * Math.atan2(Math.sqrt(x), Math.sqrt(1-x));
+  }
+
+  function fmt(ms) {
+    const s=Math.floor(ms/1000), h=Math.floor(s/3600), m=Math.floor((s%3600)/60), sec=s%60;
+    return `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(sec).padStart(2,'0')}`;
+  }
+  function fmtHuman(ms) {
+    const s=Math.floor(ms/1000), h=Math.floor(s/3600), m=Math.floor((s%3600)/60);
+    return h>0 ? `${h}h ${m}m` : `${m}m`;
+  }
+
+  function confirmName() {
+    const val = document.getElementById('driverNameInput').value.trim();
+    if (!val) { document.getElementById('driverNameInput').focus(); return; }
+    driverName = val;
+    document.getElementById('nameScreen').style.display = 'none';
+    document.getElementById('trackerScreen').style.display = 'flex';
+  }
+
+  async function startTrip() {
+    if (!navigator.geolocation) { setGps('error','GPS not supported'); return; }
+
+    // Create trip in Supabase
+    const { data, error } = await sb.from('trips').insert({
+      driver_name: driverName,
+      started_at: new Date().toISOString(),
+      status: 'active'
+    }).select().single();
+
+    if (error) { console.error(error); alert('Could not start trip. Check your connection.'); return; }
+    tripId    = data.id;
+    startTime = new Date();
+    totalKm   = 0;
+    lastPos   = null;
+    maxSpeed  = 0;
+    routePoints = [];
+
+    setUI('running');
+    setGps('active', 'Acquiring GPS…');
+
+    timerInt = setInterval(() => {
+      document.getElementById('timerDisplay').textContent = fmt(Date.now() - startTime);
+    }, 1000);
+
+    watchId = navigator.geolocation.watchPosition(onPos, onGpsErr, {
+      enableHighAccuracy: true, maximumAge: 4000, timeout: 15000
+    });
+
+    try { if ('wakeLock' in navigator) await navigator.wakeLock.request('screen'); } catch {}
+  }
+
+  async function onPos(pos) {
+    const { latitude: lat, longitude: lng, speed, accuracy } = pos.coords;
+    const point = [lat, lng];
+
+    setGps('active', `GPS locked · ±${Math.round(accuracy)}m`);
+
+    const kmh = speed != null ? Math.round(speed * 3.6) : null;
+    if (kmh !== null) {
+      document.getElementById('speedNow').textContent = kmh;
+      if (kmh > maxSpeed) { maxSpeed = kmh; document.getElementById('speedMax').textContent = kmh; }
+    }
+
+    // Init map on first point
+    if (!map) initMap(lat, lng);
+
+    // Distance
+    if (lastPos && accuracy < 100) {
+      const d = haversine(lastPos, point);
+      if (d * 1000 > 5) {
+        totalKm += d;
+        document.getElementById('kmDisplay').textContent = totalKm.toFixed(1);
+      }
+    }
+    lastPos = point;
+
+    // Update map
+    routePoints.push(point);
+    routeLine.setLatLngs(routePoints);
+    currentMarker.setLatLng(point);
+    map.panTo(point, { animate: true, duration: 0.5 });
+
+    // Save point to Supabase every ~10 seconds (throttle)
+    if (routePoints.length === 1 || routePoints.length % 3 === 0) {
+      await sb.from('gps_points').insert({
+        trip_id: tripId,
+        lat, lng,
+        speed_kmh: kmh,
+        accuracy,
+        recorded_at: new Date().toISOString()
+      });
+    }
+  }
+
+  function onGpsErr(e) {
+    const msgs = { 1:'Location denied. Allow GPS in browser settings.', 2:'GPS signal lost.', 3:'GPS timeout. Retrying…' };
+    setGps('error', msgs[e.code] || 'GPS error');
+  }
+
+  async function stopTrip() {
+    navigator.geolocation.clearWatch(watchId);
+    clearInterval(timerInt);
+
+    const endTime = new Date();
+    const elapsed = endTime - startTime;
+    const avg = elapsed > 0 ? (totalKm / (elapsed/3600000)).toFixed(1) : 0;
+
+    // Update trip in Supabase
+    await sb.from('trips').update({
+      ended_at: endTime.toISOString(),
+      total_km: parseFloat(totalKm.toFixed(2)),
+      max_speed_kmh: maxSpeed,
+      avg_speed_kmh: parseFloat(avg),
+      status: 'done'
+    }).eq('id', tripId);
+
+    // Show results
+    document.getElementById('rKm').textContent  = totalKm.toFixed(2) + ' km';
+    document.getElementById('rTime').textContent = fmtHuman(elapsed);
+    document.getElementById('rAvg').textContent  = avg + ' km/h';
+    document.getElementById('rMax').textContent  = maxSpeed > 0 ? maxSpeed + ' km/h' : '—';
+
+    // Add end marker to map
+    if (lastPos && map) {
+      L.circleMarker(lastPos, {
+        radius: 10, fillColor: '#ef4b2f', color: '#ffffff',
+        weight: 3, opacity: 1, fillOpacity: 1
+      }).addTo(map).bindPopup('End').openPopup();
+      if (routePoints.length > 1) map.fitBounds(routeLine.getBounds(), { padding: [30,30] });
+    }
+
+    setGps('', 'Trip saved');
+    setUI('done');
+  }
+
+  function resetTrip() {
+    totalKm = 0; lastPos = null; maxSpeed = 0; routePoints = [];
+    document.getElementById('kmDisplay').textContent     = '0.0';
+    document.getElementById('timerDisplay').textContent  = '00:00:00';
+    document.getElementById('speedNow').textContent      = '—';
+    document.getElementById('speedMax').textContent      = '—';
+    if (map) { map.remove(); map = null; routeLine = null; startMarker = null; currentMarker = null; }
+    setGps('', 'Waiting for GPS…');
+    setUI('idle');
+  }
+
+  function setUI(s) {
+    const badge = document.getElementById('statusBadge');
+    const kmCard = document.getElementById('kmCard');
+    badge.className = `status-badge badge-${s}`;
+    badge.textContent = s === 'idle' ? 'Idle' : s === 'running' ? '● Live' : 'Done';
+    kmCard.className = `km-card${s === 'done' ? ' done' : ''}`;
+    document.getElementById('kmEyebrow').textContent = s === 'running' ? 'Currently Tracking' : 'Total Distance';
+    document.getElementById('startBtn').classList.toggle('hidden', s !== 'idle');
+    document.getElementById('stopBtn').classList.toggle('hidden', s !== 'running');
+    document.getElementById('resetBtn').classList.toggle('hidden', s !== 'done');
+    document.getElementById('resultPanel').classList.toggle('show', s === 'done');
+  }
+
+  function setGps(type, msg) {
+    document.getElementById('gpsDot').className = 'gps-dot' + (type ? ` ${type}` : '');
+    document.getElementById('gpsText').textContent = msg;
+  }
+
+  // Handle Enter key on name input
+  document.getElementById('driverNameInput').addEventListener('keydown', e => {
+    if (e.key === 'Enter') confirmName();
+  });
+</script>
+</body>
+</html>
