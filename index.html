@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
-  <title>DRIVE.TRACK</title>
+  <title>DRIVE.TRACK — Driver Portal</title>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Poppins:wght@700;800;900&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
@@ -17,54 +17,93 @@
       --teal: #49c5b6; --card: #ffffff; --line: #e7e0d8;
     }
     html, body { height: 100%; background: var(--bg); font-family: 'Inter', sans-serif; color: var(--text); }
-
     body { display: flex; flex-direction: column; min-height: 100svh; }
 
     /* HEADER */
     .header {
-      padding: 20px 20px 0;
+      padding: 16px 20px;
       display: flex; align-items: center; justify-content: space-between;
+      background: var(--card); border-bottom: 1px solid var(--line);
       flex-shrink: 0;
     }
     .logo { font-family: 'Inter', sans-serif; font-weight: 800; font-size: 16px; letter-spacing: -0.03em; }
+    .header-right { display: flex; align-items: center; gap: 10px; }
+    
     .status-badge {
-      padding: 7px 14px; border-radius: 999px; font-size: 11px;
+      padding: 5px 12px; border-radius: 999px; font-size: 10px;
       font-weight: 800; letter-spacing: 0.05em; text-transform: uppercase; transition: all 0.3s;
     }
     .badge-idle    { background: var(--line); color: var(--muted); }
     .badge-running { background: var(--teal); color: white; }
     .badge-done    { background: var(--green); color: var(--text); }
+    
+    .logout-btn {
+      background: transparent; border: 1px solid var(--line); border-radius: 999px;
+      padding: 5px 12px; font-size: 10px; font-weight: 700; cursor: pointer; color: var(--muted);
+      transition: all 0.2s;
+    }
+    .logout-btn:hover { border-color: var(--primary); color: var(--primary); }
 
-    /* DRIVER NAME PROMPT */
-    #nameScreen {
+    /* LOGIN SCREEN */
+    #loginScreen {
       flex: 1; display: flex; flex-direction: column;
       align-items: center; justify-content: center;
       padding: 28px 24px; gap: 20px;
     }
-    .name-card {
+    .login-card {
       width: 100%; max-width: 400px; background: var(--text);
       border-radius: 34px; padding: 40px 32px; color: white; text-align: center;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.15);
     }
-    .name-card h2 {
+    .login-card h2 {
       font-family: 'Poppins', sans-serif; font-size: 32px;
       font-weight: 900; letter-spacing: -0.05em; margin-bottom: 8px;
     }
-    .name-card p { font-size: 14px; opacity: 0.6; margin-bottom: 28px; }
-    .name-input {
+    .login-card p { font-size: 14px; opacity: 0.6; margin-bottom: 28px; }
+    .login-input {
       width: 100%; padding: 18px 20px; border-radius: 999px;
       border: 2px solid rgba(255,255,255,0.2); background: rgba(255,255,255,0.1);
       color: white; font-family: 'Poppins', sans-serif; font-size: 18px; font-weight: 700;
-      text-align: center; outline: none; margin-bottom: 16px;
+      text-align: center; outline: none; margin-bottom: 16px; transition: border-color 0.2s;
     }
-    .name-input::placeholder { opacity: 0.4; }
-    .name-input:focus { border-color: var(--yellow); }
+    .login-input::placeholder { opacity: 0.4; }
+    .login-input:focus { border-color: var(--primary); }
+    .error-msg { color: #ff6b6b; font-size: 13px; font-weight: 600; margin-bottom: 15px; display: none; }
 
-    /* MAIN TRACKER */
-    #trackerScreen { flex: 1; display: none; flex-direction: column; padding: 16px 16px 24px; gap: 14px; }
-
-    .top-stats {
-      display: grid; grid-template-columns: 1fr 1fr; gap: 12px;
+    /* DRIVER DASHBOARD SCREEN */
+    #trackerScreen { flex: 1; display: none; flex-direction: column; padding: 16px; gap: 14px; overflow-y: auto; }
+    
+    .profile-banner {
+      background: var(--card); border: 1px solid var(--line); border-radius: 24px;
+      padding: 16px 20px; display: flex; align-items: center; justify-content: space-between;
     }
+    .profile-info { display: flex; align-items: center; gap: 12px; }
+    .profile-avatar {
+      width: 44px; height: 44px; border-radius: 50%; background: var(--primary);
+      color: white; font-family: 'Poppins', sans-serif; font-weight: 900; font-size: 16px;
+      display: grid; place-items: center;
+    }
+    .profile-details h3 { font-family: 'Poppins', sans-serif; font-size: 16px; font-weight: 800; letter-spacing: -0.03em; }
+    .profile-details p { font-size: 12px; color: var(--muted); }
+
+    /* STATUS SELECTOR */
+    .status-selector {
+      background: var(--card); border: 1px solid var(--line); border-radius: 24px;
+      padding: 16px 20px; display: flex; flex-direction: column; gap: 10px;
+    }
+    .status-label { font-size: 10px; font-weight: 800; letter-spacing: 0.07em; text-transform: uppercase; color: var(--muted); }
+    .status-options { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; }
+    .status-opt {
+      padding: 12px 6px; border: 1px solid var(--line); border-radius: 999px;
+      text-align: center; font-size: 12px; font-weight: 800; cursor: pointer; transition: all 0.2s;
+      background: var(--bg); color: var(--muted);
+    }
+    .status-opt.active[data-val="Available"] { background: var(--teal); border-color: var(--teal); color: white; }
+    .status-opt.active[data-val="Busy"] { background: var(--yellow); border-color: var(--yellow); color: var(--text); }
+    .status-opt.active[data-val="Off Duty"] { background: var(--text); border-color: var(--text); color: white; }
+
+    /* STATS CARDS */
+    .top-stats { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
     .stat-card {
       background: var(--card); border: 1px solid var(--line);
       border-radius: 24px; padding: 18px 16px;
@@ -88,12 +127,12 @@
 
     /* MAP */
     #map {
-      flex: 1; min-height: 240px; border-radius: 24px;
+      width: 100%; height: 260px; border-radius: 24px;
       border: 1px solid var(--line); overflow: hidden;
-      z-index: 1;
+      z-index: 1; flex-shrink: 0;
     }
 
-    /* GPS bar */
+    /* GPS status */
     .gps-bar {
       background: var(--card); border: 1px solid var(--line);
       border-radius: 16px; padding: 12px 16px;
@@ -102,7 +141,6 @@
     .gps-dot { width: 9px; height: 9px; border-radius: 50%; background: var(--line); flex-shrink: 0; transition: background 0.3s; }
     .gps-dot.active { background: var(--teal); animation: pulse 1.5s infinite; }
     .gps-dot.error  { background: var(--primary); }
-    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.3} }
     .gps-text { font-size: 12px; color: var(--muted); font-weight: 500; }
 
     /* BUTTONS */
@@ -116,11 +154,12 @@
     .btn-start { background: var(--yellow); color: var(--text); }
     .btn-stop  { background: var(--primary); color: white; }
     .btn-reset { background: var(--line); color: var(--muted); }
+    .btn-history { background: var(--text); color: white; margin-top: 5px; }
     .hidden { display: none !important; }
 
     /* RESULT PANEL */
     .result-panel {
-      background: var(--green); border-radius: 24px; padding: 22px 22px;
+      background: var(--green); border-radius: 24px; padding: 22px;
       display: none; flex-shrink: 0;
     }
     .result-panel.show { display: block; }
@@ -128,27 +167,86 @@
     .result-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
     .r-item .r-lbl { font-size: 10px; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase; color: #3a4a2a; }
     .r-item .r-val { font-family: 'Poppins', sans-serif; font-size: 18px; font-weight: 900; letter-spacing: -0.03em; }
+
+    /* MODAL */
+    .modal-overlay {
+      position: fixed; inset: 0; background: rgba(0,0,0,0.4); z-index: 2000;
+      display: none; align-items: center; justify-content: center; padding: 24px;
+    }
+    .modal-overlay.show { display: flex; }
+    .modal {
+      background: var(--card); border-radius: 28px; width: 100%; max-width: 500px;
+      max-height: 80vh; display: flex; flex-direction: column; overflow: hidden;
+    }
+    .modal-header { padding: 20px 24px; border-bottom: 1px solid var(--line); display: flex; align-items: center; justify-content: space-between; }
+    .modal-title { font-family: 'Poppins', sans-serif; font-size: 20px; font-weight: 900; letter-spacing: -0.04em; }
+    .modal-close { background: var(--bg); border: none; border-radius: 999px; padding: 6px 12px; cursor: pointer; font-size: 12px; font-weight: 700; color: var(--muted); }
+    .modal-body { flex: 1; overflow-y: auto; padding: 20px 24px; display: flex; flex-direction: column; gap: 10px; }
+    
+    .history-item {
+      background: var(--bg); border: 1px solid var(--line); border-radius: 18px; padding: 14px 16px;
+      display: flex; justify-content: space-between; align-items: center;
+    }
+    .hi-left h4 { font-family: 'Poppins', sans-serif; font-size: 14px; font-weight: 800; }
+    .hi-left p { font-size: 11px; color: var(--muted); margin-top: 2px; }
+    .hi-right { text-align: right; }
+    .hi-km { font-family: 'Poppins', sans-serif; font-size: 16px; font-weight: 900; color: var(--primary); }
+    .hi-time { font-size: 11px; color: var(--muted); }
+
+    /* LOADER */
+    .loader {
+      display: inline-block; width: 24px; height: 24px;
+      border: 3px solid rgba(255,255,255,0.3); border-radius: 50%;
+      border-top-color: white; animation: spin 1s ease-in-out infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
   </style>
 </head>
 <body>
 
 <div class="header">
   <span class="logo">DRIVE.TRACK</span>
-  <span class="status-badge badge-idle" id="statusBadge">Idle</span>
-</div>
-
-<!-- STEP 1: Enter name -->
-<div id="nameScreen">
-  <div class="name-card">
-    <h2>Who are you?</h2>
-    <p>Enter your name before starting your trip</p>
-    <input class="name-input" id="driverNameInput" type="text" placeholder="Your name…" autocomplete="off" />
-    <button class="btn btn-start" onclick="confirmName()" style="width:100%">Continue →</button>
+  <div class="header-right">
+    <span class="status-badge badge-idle" id="statusBadge">Idle</span>
+    <button class="logout-btn hidden" id="logoutHeaderBtn" onclick="logout()">Logout</button>
   </div>
 </div>
 
-<!-- STEP 2: Tracker -->
+<!-- STEP 1: Login Screen -->
+<div id="loginScreen">
+  <div class="login-card">
+    <h2>Driver Login</h2>
+    <p>Enter your phone number to sign in</p>
+    <div class="error-msg" id="loginError">Invalid credentials.</div>
+    <input class="login-input" id="driverPhoneInput" type="tel" placeholder="Phone Number" autocomplete="off" />
+    <button class="btn btn-start" id="loginBtn" onclick="loginDriver()">Log In</button>
+    <div id="loginLoading" class="hidden" style="margin-top: 15px;"><span class="loader"></span></div>
+  </div>
+</div>
+
+<!-- STEP 2: Driver Dashboard -->
 <div id="trackerScreen">
+  
+  <!-- Profile Banner -->
+  <div class="profile-banner">
+    <div class="profile-info">
+      <div class="profile-avatar" id="avatarLetter">D</div>
+      <div class="profile-details">
+        <h3 id="driverNameLabel">Driver Name</h3>
+        <p id="driverPhoneLabel">Phone</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Availability Status Selector -->
+  <div class="status-selector">
+    <div class="status-label">Your Status</div>
+    <div class="status-options">
+      <div class="status-opt" data-val="Available" onclick="updateAvailability('Available')">Available</div>
+      <div class="status-opt" data-val="Busy" onclick="updateAvailability('Busy')">Busy</div>
+      <div class="status-opt" data-val="Off Duty" onclick="updateAvailability('Off Duty')">Off Duty</div>
+    </div>
+  </div>
 
   <!-- KM display -->
   <div class="km-card" id="kmCard">
@@ -200,18 +298,32 @@
   <button class="btn btn-start" id="startBtn" onclick="startTrip()">▶ Start Trip</button>
   <button class="btn btn-stop hidden" id="stopBtn" onclick="stopTrip()">■ Stop &amp; Save</button>
   <button class="btn btn-reset hidden" id="resetBtn" onclick="resetTrip()">↺ New Trip</button>
+  <button class="btn btn-history" id="historyBtn" onclick="openHistoryModal()">📋 My Trip History</button>
 
 </div>
 
+<!-- TRIP HISTORY MODAL -->
+<div class="modal-overlay" id="historyModal">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title">My Trip History</div>
+      <button class="modal-close" onclick="closeHistoryModal()">✕ Close</button>
+    </div>
+    <div class="modal-body" id="historyModalBody">
+      Loading trips...
+    </div>
+  </div>
+</div>
+
 <script>
-  // ─── CONFIG — paste your Supabase keys here ───────────────────────────────
+  // ─── CONFIG ──────────────────────────────────────────────────────────────
   const SUPABASE_URL = 'https://gczldnidvytkppbbwvyz.supabase.co';
   const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imdjemxkbmlkdnl0a3BwYmJ3dnl6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExMjI4ODUsImV4cCI6MjA5NjY5ODg4NX0.xe5feNnhX-CEIasF1ms2J_wH88_Le2pO49sz1q1joOY';
   // ─────────────────────────────────────────────────────────────────────────
 
   const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-  let driverName = '';
+  let currentDriver = null;
   let tripId     = null;
   let watchId    = null;
   let timerInt   = null;
@@ -224,6 +336,168 @@
   // Map
   let map, routeLine, startMarker, currentMarker;
 
+  // Session Checker on Start
+  window.addEventListener('DOMContentLoaded', async () => {
+    const { data: { session } } = await sb.auth.getSession();
+    if (session) {
+      await loadProfile(session.user.id);
+    } else {
+      showLoginScreen();
+    }
+  });
+
+  async function loadProfile(uid) {
+    try {
+      const { data: driver, error } = await sb.from('drivers')
+        .select('*')
+        .eq('id', uid)
+        .single();
+
+      if (error || !driver) {
+        console.error('Driver fetch error:', error);
+        alert('Driver profile not found.');
+        await sb.auth.signOut();
+        showLoginScreen();
+        return;
+      }
+
+      if (!driver.active) {
+        alert('Your account is currently deactivated. Contact manager.');
+        await sb.auth.signOut();
+        showLoginScreen();
+        return;
+      }
+
+      currentDriver = driver;
+      document.getElementById('driverNameLabel').textContent = driver.full_name;
+      document.getElementById('driverPhoneLabel').textContent = driver.phone_number;
+      document.getElementById('avatarLetter').textContent = driver.full_name.charAt(0).toUpperCase();
+      
+      // Update UI active status option
+      updateAvailabilityUI(driver.availability);
+      showTrackerScreen();
+    } catch (err) {
+      console.error(err);
+      showLoginScreen();
+    }
+  }
+
+  async function loginDriver() {
+    const phoneInput = document.getElementById('driverPhoneInput').value.trim();
+    if (!phoneInput) {
+      document.getElementById('driverPhoneInput').focus();
+      return;
+    }
+
+    // Remove any formatting, leave only numbers
+    const cleanPhone = phoneInput.replace(/\D/g, '');
+    if (cleanPhone.length < 5) {
+      showError('Please enter a valid phone number.');
+      return;
+    }
+
+    hideError();
+    document.getElementById('loginBtn').classList.add('hidden');
+    document.getElementById('loginLoading').classList.remove('hidden');
+
+    try {
+      // Try with @drivetrack.com email domain
+      let email = `${cleanPhone}@drivetrack.com`;
+      let { data, error } = await sb.auth.signInWithPassword({
+        email,
+        password: cleanPhone
+      });
+
+      // Fallback to @drivetrack.local email domain if .com failed
+      if (error) {
+        email = `${cleanPhone}@drivetrack.local`;
+        const localRes = await sb.auth.signInWithPassword({
+          email,
+          password: cleanPhone
+        });
+        data = localRes.data;
+        error = localRes.error;
+      }
+
+      if (error) {
+        showError('Invalid Phone Number. Make sure your account is registered by a manager.');
+        document.getElementById('loginBtn').classList.remove('hidden');
+        document.getElementById('loginLoading').classList.add('hidden');
+        return;
+      }
+
+      await loadProfile(data.user.id);
+    } catch (err) {
+      console.error(err);
+      showError('Authentication failed. Check your internet connection.');
+      document.getElementById('loginBtn').classList.remove('hidden');
+      document.getElementById('loginLoading').classList.add('hidden');
+    }
+  }
+
+  async function logout() {
+    await sb.auth.signOut();
+    currentDriver = null;
+    showLoginScreen();
+  }
+
+  function showLoginScreen() {
+    document.getElementById('loginScreen').style.display = 'flex';
+    document.getElementById('trackerScreen').style.display = 'none';
+    document.getElementById('logoutHeaderBtn').classList.add('hidden');
+    document.getElementById('loginBtn').classList.remove('hidden');
+    document.getElementById('loginLoading').classList.add('hidden');
+    document.getElementById('driverPhoneInput').value = '';
+    resetTrip();
+  }
+
+  function showTrackerScreen() {
+    document.getElementById('loginScreen').style.display = 'none';
+    document.getElementById('trackerScreen').style.display = 'flex';
+    document.getElementById('logoutHeaderBtn').classList.remove('hidden');
+  }
+
+  function showError(msg) {
+    const box = document.getElementById('loginError');
+    box.textContent = msg;
+    box.style.display = 'block';
+  }
+
+  function hideError() {
+    document.getElementById('loginError').style.display = 'none';
+  }
+
+  async function updateAvailability(status) {
+    if (!currentDriver) return;
+    
+    // Optimistic UI update
+    updateAvailabilityUI(status);
+
+    const { error } = await sb.from('drivers')
+      .update({ availability: status })
+      .eq('id', currentDriver.id);
+
+    if (error) {
+      console.error('Failed to update status:', error);
+      // Revert UI on error
+      updateAvailabilityUI(currentDriver.availability);
+      alert('Could not update status: ' + error.message);
+    } else {
+      currentDriver.availability = status;
+    }
+  }
+
+  function updateAvailabilityUI(status) {
+    document.querySelectorAll('.status-opt').forEach(opt => {
+      if (opt.getAttribute('data-val') === status) {
+        opt.classList.add('active');
+      } else {
+        opt.classList.remove('active');
+      }
+    });
+  }
+
+  // ─── MAP SETUP ───────────────────────────────────────────────────────────
   function initMap(lat, lng) {
     if (map) return;
     const bounds = L.latLngBounds([17.8, -16.2], [18.3, -15.7]);
@@ -262,36 +536,40 @@
     const s=Math.floor(ms/1000), h=Math.floor(s/3600), m=Math.floor((s%3600)/60), sec=s%60;
     return `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(sec).padStart(2,'0')}`;
   }
+  
   function fmtHuman(ms) {
     const s=Math.floor(ms/1000), h=Math.floor(s/3600), m=Math.floor((s%3600)/60);
     return h>0 ? `${h}h ${m}m` : `${m}m`;
   }
 
-  function confirmName() {
-    const val = document.getElementById('driverNameInput').value.trim();
-    if (!val) { document.getElementById('driverNameInput').focus(); return; }
-    driverName = val;
-    document.getElementById('nameScreen').style.display = 'none';
-    document.getElementById('trackerScreen').style.display = 'flex';
-  }
-
+  // ─── TRIP TRACKING ────────────────────────────────────────────────────────
   async function startTrip() {
     if (!navigator.geolocation) { setGps('error','GPS not supported'); return; }
+    if (!currentDriver) return;
 
-    // Create trip in Supabase
+    // Create trip in Supabase using the drivers' profile and authenticated ID
     const { data, error } = await sb.from('trips').insert({
-      driver_name: driverName,
+      driver_id: currentDriver.id,
+      driver_name: currentDriver.full_name,
       started_at: new Date().toISOString(),
       status: 'active'
     }).select().single();
 
-    if (error) { console.error(error); alert('Could not start trip. Check your connection.'); return; }
+    if (error) {
+      console.error(error);
+      alert('Could not start trip: ' + error.message);
+      return;
+    }
+    
     tripId    = data.id;
     startTime = new Date();
     totalKm   = 0;
     lastPos   = null;
     maxSpeed  = 0;
     routePoints = [];
+
+    // Also mark availability as "Busy" since driver is tracking
+    updateAvailability('Busy');
 
     setUI('running');
     setGps('active', 'Acquiring GPS…');
@@ -322,7 +600,7 @@
     // Init map on first point
     if (!map) initMap(lat, lng);
 
-    // Distance
+    // Distance calculation
     if (lastPos && accuracy < 100) {
       const d = haversine(lastPos, point);
       if (d * 1000 > 5) {
@@ -332,13 +610,13 @@
     }
     lastPos = point;
 
-    // Update map
+    // Update map route
     routePoints.push(point);
     routeLine.setLatLngs(routePoints);
     currentMarker.setLatLng(point);
     map.panTo(point, { animate: true, duration: 0.5 });
 
-    // Save point to Supabase every ~10 seconds (throttle)
+    // Save point to Supabase
     if (routePoints.length === 1 || routePoints.length % 3 === 0) {
       await sb.from('gps_points').insert({
         trip_id: tripId,
@@ -356,8 +634,8 @@
   }
 
   async function stopTrip() {
-    navigator.geolocation.clearWatch(watchId);
-    clearInterval(timerInt);
+    if (watchId) navigator.geolocation.clearWatch(watchId);
+    if (timerInt) clearInterval(timerInt);
 
     const endTime = new Date();
     const elapsed = endTime - startTime;
@@ -389,6 +667,9 @@
 
     setGps('', 'Trip saved');
     setUI('done');
+
+    // Automatically set status back to "Available" when done
+    updateAvailability('Available');
   }
 
   function resetTrip() {
@@ -420,9 +701,63 @@
     document.getElementById('gpsText').textContent = msg;
   }
 
-  // Handle Enter key on name input
-  document.getElementById('driverNameInput').addEventListener('keydown', e => {
-    if (e.key === 'Enter') confirmName();
+  // ─── HISTORY MODAL ───────────────────────────────────────────────────────
+  async function openHistoryModal() {
+    if (!currentDriver) return;
+    document.getElementById('historyModal').classList.add('show');
+    const body = document.getElementById('historyModalBody');
+    body.innerHTML = 'Loading trips...';
+
+    const { data: trips, error } = await sb.from('trips')
+      .select('*')
+      .eq('driver_id', currentDriver.id)
+      .eq('status', 'done')
+      .order('started_at', { ascending: false })
+      .limit(30);
+
+    if (error) {
+      console.error(error);
+      body.innerHTML = '<p style="color:var(--primary);text-align:center;padding:10px;">Error loading trip history.</p>';
+      return;
+    }
+
+    if (!trips || trips.length === 0) {
+      body.innerHTML = '<p style="color:var(--muted);text-align:center;padding:20px;">No completed trips yet.</p>';
+      return;
+    }
+
+    body.innerHTML = '';
+    trips.forEach(t => {
+      const el = document.createElement('div');
+      el.className = 'history-item';
+      
+      const started = new Date(t.started_at);
+      const ended = t.ended_at ? new Date(t.ended_at) : started;
+      const elapsed = ended - started;
+      const formattedDate = started.toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' });
+      const formattedTime = started.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+      el.innerHTML = `
+        <div class="hi-left">
+          <h4>${formattedDate}</h4>
+          <p>${formattedTime} · Duration: ${fmtHuman(elapsed)}</p>
+        </div>
+        <div class="hi-right">
+          <div class="hi-km">${(t.total_km || 0).toFixed(2)} km</div>
+          <div class="hi-time">Max Speed: ${t.max_speed_kmh || 0} km/h</div>
+        </div>
+      `;
+      body.appendChild(el);
+    });
+  }
+
+  function closeHistoryModal() {
+    document.getElementById('historyModal').classList.remove('show');
+  }
+
+  // Allow enter to login
+  document.getElementById('driverPhoneInput').addEventListener('keydown', e => {
+    if (e.key === 'Enter') loginDriver();
   });
 </script>
 </body>
