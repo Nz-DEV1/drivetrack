@@ -226,9 +226,16 @@
 
   function initMap(lat, lng) {
     if (map) return;
-    map = L.map('map', { zoomControl: true, attributionControl: false }).setView([lat, lng], 14);
-    L.tileLayer('https://{s}.basemaps.cartocdn.com/light_nolabels/{z}/{x}/{y}{r}.png', {
-      maxZoom: 19
+    const bounds = L.latLngBounds([17.8, -16.2], [18.3, -15.7]);
+    map = L.map('map', { 
+      zoomControl: true, 
+      attributionControl: false,
+      maxBounds: bounds,
+      maxBoundsViscosity: 1.0,
+      minZoom: 11
+    }).setView([lat, lng], 14);
+    L.tileLayer('https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}', {
+      maxZoom: 19, attribution: '© Google'
     }).addTo(map);
 
     // Start marker — green circle

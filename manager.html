@@ -84,6 +84,16 @@
     }
     .history-btn:active { transform: scale(0.97); }
 
+    .view-all-btn {
+      position: absolute; top: 24px; right: 24px; z-index: 1000;
+      background: var(--card); color: var(--text); border: 1px solid var(--line); border-radius: 999px;
+      padding: 10px 18px; font-family: 'Poppins', sans-serif; font-size: 13px;
+      font-weight: 800; cursor: pointer; box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+      transition: all 0.15s;
+    }
+    .view-all-btn:hover { border-color: var(--teal); color: var(--teal); }
+    .view-all-btn:active { transform: scale(0.97); }
+
     /* HISTORY MODAL */
     .modal-overlay {
       position: fixed; inset: 0; background: rgba(0,0,0,0.4); z-index: 2000;
@@ -149,6 +159,7 @@
   <!-- MAP -->
   <div style="position:relative">
     <div id="map"></div>
+    <button class="view-all-btn" onclick="fitAllDrivers()">🌍 View All</button>
     <button class="history-btn" onclick="openHistory()">📋 Trip History</button>
   </div>
 
@@ -174,8 +185,15 @@ const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZ
   const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
   // Map setup
-  const map = L.map('map', { zoomControl: true, attributionControl: false }).setView([18.0735, -15.9582], 12);
-  L.tileLayer('https://{s}.basemaps.cartocdn.com/light_nolabels/{z}/{x}/{y}{r}.png', { maxZoom: 19 }).addTo(map);
+  const bounds = L.latLngBounds([17.8, -16.2], [18.3, -15.7]);
+  const map = L.map('map', { 
+    zoomControl: true, 
+    attributionControl: false,
+    maxBounds: bounds,
+    maxBoundsViscosity: 1.0,
+    minZoom: 11
+  }).setView([18.0735, -15.9582], 12);
+  L.tileLayer('https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}', { maxZoom: 19, attribution: '© Google' }).addTo(map);
 
   const COLORS = ['#3b82f6','#ef4b2f','#8b5cf6','#f59e0b','#10b981','#ec4899','#14b8a6','#f97316','#6366f1','#84cc16'];
 
@@ -211,6 +229,7 @@ const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZ
     if (!trips) return;
     for (const trip of trips) await loadTripPoints(trip);
     renderSidebar();
+    fitAllDrivers();
   }
 
   async function loadTripPoints(trip) {
@@ -345,6 +364,26 @@ const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZ
       map.fitBounds(entry.line.getBounds(), { padding: [60,60] });
     } else if (entry.points.length === 1) {
       map.setView(entry.points[0], 15);
+    }
+    renderSidebar();
+  }
+
+  function fitAllDrivers() {
+    selectedTripId = null;
+    const trips = Object.values(activeTrips);
+    if (trips.length === 0) return;
+    
+    const bounds = L.latLngBounds();
+    let hasPoints = false;
+    trips.forEach(t => {
+      if (t.points && t.points.length > 0) {
+        hasPoints = true;
+        t.points.forEach(p => bounds.extend(p));
+      }
+    });
+    
+    if (hasPoints) {
+      map.fitBounds(bounds, { padding: [50, 50] });
     }
     renderSidebar();
   }
